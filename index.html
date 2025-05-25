@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FortiCryptX Demo</title>
+  <link rel="icon" href="https://img.icons8.com/ios/452/lock--v1.png" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-color: #f5f6fa;
+      --text-color: #2f3640;
+      --box-color: white;
+      --log-bg: #f0f0f0;
+    }
+
+    body.dark-mode {
+      --bg-color: #1e272e;
+      --text-color: #f5f6fa;
+      --box-color: #2d3436;
+      --log-bg: #353b48;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 30px;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .button {
+      padding: 10px 20px;
+      margin: 5px;
+      background-color: #40739e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .button:hover {
+      background-color: #273c75;
+    }
+
+    .box {
+      background: var(--box-color);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #logs {
+      max-height: 250px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      background-color: var(--log-bg);
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+    }
+
+    .progress {
+      width: 100%;
+      background-color: #ccc;
+      border-radius: 10px;
+      overflow: hidden;
+      height: 16px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background-color: #44bd32;
+      transition: width 0.5s ease;
+    }
+
+    select, input[type="text"] {
+      padding: 6px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    #header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    #header img {
+      height: 50px;
+      border-radius: 50%;
+    }
+
+    #toggleTheme {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--text-color);
+      color: var(--text-color);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .tooltip {
+      background: #feca57;
+      padding: 5px 10px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      display: none;
+      font-weight: bold;
+    }
+
+    #chartBox {
+      padding: 20px;
+      min-height: 200px;
+    }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="header">
+    <img src="https://i.pravatar.cc/50" alt="User Avatar" />
+    <h1>FortiCryptX – Interactive Demo</h1>
+    <button id="toggleTheme" onclick="toggleTheme()">🌙 Dark Mode</button>
+  </div>
+
+  <div class="tooltip" id="tourTooltip"></div>
+
+  <div class="box" id="step1">
+    <h3>👤 Select Role</h3>
+    <select id="userRole" onchange="updateRole()">
+      <option value="admin">Admin</option>
+      <option value="viewer">Viewer</option>
+    </select>
+    <p id="roleDesc">You have full access to encryption and logs.</p>
+  </div>
+
+  <div class="box" id="step2">
+    <h3>📂 Select a File (Simulated)</h3>
+    <input type="text" id="filename" value="plain.txt" placeholder="Enter file name">
+  </div>
+
+  <div class="box" id="step3">
+    <h3>⚙️ Actions</h3>
+    <button class="button" onclick="simulateEncrypt()">Encrypt File</button>
+    <button class="button" onclick="simulateDecrypt()">Decrypt File</button>
+    <button class="button" onclick="viewLogs()">View Logs</button>
+    <button class="button" onclick="downloadEncrypted()">📥 Download .dat</button>
+    <button class="button" onclick="generatePDF()">📄 Generate PDF Report</button>
+    <button class="button" onclick="exportSessionCSV()">📊 Export Session (CSV)</button>
+    <button class="button" onclick="viewSessionData()">🧠 View Session</button>
+    <button class="button" onclick="startTour()">🎓 Start Tour</button>
+
+    <div class="progress" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+  </div>
+
+  <div class="box" id="chartBox">
+    <h3>📈 Session Statistics</h3>
+    <canvas id="logChart" height="100"></canvas>
+  </div>
+
+  <div class="box">
+    <h3>📜 Activity Log</h3>
+    <div id="logs">[Logs will appear here]</div>
+  </div>
+
+  <script>
+    let role = "admin";
+    const logs = [];
+
+    function updateRole() {
+      role = document.getElementById("userRole").value;
+      document.getElementById("roleDesc").textContent =
+        role === "admin"
+          ? "You have full access to encryption and logs."
+          : "You can only view logs. Encryption is disabled.";
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark-mode");
+      document.getElementById("toggleTheme").textContent =
+        document.body.classList.contains("dark-mode") ? "☀️ Light Mode" : "🌙 Dark Mode";
+    }
+
+    function log(message, delay = 0) {
+      setTimeout(() => {
+        const timestamp = new Date().toISOString();
+        const line = `[${timestamp}] ${message}`;
+        logs.push(line);
+        localStorage.setItem("sessionLogs", JSON.stringify(logs));
+        typewriter(line + '\n', document.getElementById("logs"));
+        renderChart();
+      }, delay);
+    }
+
+    function typewriter(text, target, i = 0) {
+      if (i === 0) target.textContent += '\n';
+      if (i < text.length) {
+        target.textContent += text.charAt(i);
+        setTimeout(() => typewriter(text, target, i + 1), 10);
+      }
+    }
+
+    function showProgress(duration = 1000) {
+      const bar = document.getElementById("progressBar");
+      const container = document.getElementById("progressContainer");
+      container.style.display = "block";
+      bar.style.width = "0%";
+
+      let start = null;
+      function animate(timestamp) {
+        if (!start) start = timestamp;
+        const progress = Math.min((timestamp - start) / duration, 1);
+        bar.style.width = (progress * 100) + "%";
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setTimeout(() => container.style.display = "none", 500);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function simulateEncrypt() {
+      if (role !== "admin") return alert("Only Admin can encrypt files.");
+      const file = document.getElementById("filename").value.trim();
+      if (!file.endsWith(".txt")) return alert("Only .txt files are supported.");
+      log(`Started encryption for "${file}"...`);
+      showProgress(1200);
+      setTimeout(() => log(`✅ Encrypted "${file}" to "encrypted.dat" using 2048-bit RSA key.`), 1300);
+    }
+
+    function simulateDecrypt() {
+      if (role !== "admin") return alert("Only Admin can decrypt files.");
+      const file = "encrypted.dat";
+      log(`Started decryption for "${file}"...`);
+      showProgress(1000);
+      setTimeout(() => {
+        log(`🔓 Decrypted "${file}" to "decrypted.txt"`);
+        log(`🔍 SHA-256 integrity verified: ✅ Match`, 200);
+      }, 1100);
+    }
+
+    function viewLogs() {
+      log("📖 Viewing logs (simulated)...", 300);
+    }
+
+    function downloadEncrypted() {
+      const content = "Simulated encrypted file\n[Bytes: " + Math.random().toString(36).slice(2) + "]";
+      const blob = new Blob([content], { type: "application/octet-stream" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "encrypted.dat";
+      link.click();
+    }
+
+    async function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(12);
+      doc.text("FortiCryptX – Log Report", 10, 10);
+      let y = 20;
+      logs.forEach(entry => {
+        const lines = doc.splitTextToSize(entry, 180);
+        doc.text(lines, 10, y);
+        y += lines.length * 8;
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+      doc.save("forticryptx_log_report.pdf");
+    }
+
+    function exportSessionCSV() {
+      const data = JSON.parse(localStorage.getItem("sessionLogs")) || [];
+      const csv = ["Timestamp,Event"].concat(data.map(line => `"${line.replace(/\"/g, '"')}"`)).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "session_log.csv";
+      a.click();
+    }
+
+    function viewSessionData() {
+      const saved = JSON.parse(localStorage.getItem("sessionLogs")) || [];
+      alert("Session contains " + saved.length + " entries.\n\n" + saved.slice(-5).join("\n"));
+    }
+
+    function startTour() {
+      const steps = [
+        { el: "step1", text: "Step 1: Select your role (Admin or Viewer)." },
+        { el: "step2", text: "Step 2: Enter the filename to be encrypted." },
+        { el: "step3", text: "Step 3: Perform encryption, decryption, or export logs." },
+      ];
+      const tooltip = document.getElementById("tourTooltip");
+      let i = 0;
+
+      function nextStep() {
+        if (i >= steps.length) return tooltip.style.display = "none";
+        const { el, text } = steps[i++];
+        const box = document.getElementById(el);
+        const rect = box.getBoundingClientRect();
+        tooltip.style.top = (window.scrollY + rect.top - 40) + "px";
+        tooltip.style.left = (rect.left + 20) + "px";
+        tooltip.style.display = "block";
+        tooltip.textContent = text;
+        setTimeout(nextStep, 3000);
+      }
+
+      nextStep();
+    }
+
+    function renderChart() {
+      const ctx = document.getElementById('logChart').getContext('2d');
+      const stored = JSON.parse(localStorage.getItem("sessionLogs")) || [];
+
+      if (stored.length === 0) {
+        ctx.font = "16px Arial";
+        ctx.fillText("No session data available yet.", 10, 50);
+        return;
+      }
+
+      const counts = {};
+      stored.forEach(log => {
+        const date = log.slice(1, 11);
+        counts[date] = (counts[date] || 0) + 1;
+      });
+
+      const labels = Object.keys(counts);
+      const data = Object.values(counts);
+
+      if (window.logChart) window.logChart.destroy();
+      window.logChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Log Entries per Day',
+            data,
+            backgroundColor: '#40739e'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    window.onload = function () {
+      const saved = JSON.parse(localStorage.getItem("sessionLogs")) || [];
+      saved.forEach(line => logs.push(line));
+      renderChart();
+    };
+  </script>
+</body>
+</html>
