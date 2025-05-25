@@ -103,11 +103,6 @@ FortiCryptX is an advanced hybrid cryptographic framework built for Google Colab
 pip install -r requirements.txt
 ```
 
----
-
-## 📸 UI Preview
-
-![UI Preview](Workflow_Diagram.png)
 
 ---
 
