@@ -1,4 +1,4 @@
-# 🔐 FortiCryptX-Colab
+![Workflow_Diagram](https://github.com/user-attachments/assets/f9e60115-68d0-46a5-b349-e4ef521cc34a)# 🔐 FortiCryptX-Colab
 
 **Secure, Intelligent & Modular File Encryption with Post-Quantum Simulation and Cloud Integration**
 
@@ -107,7 +107,7 @@ pip install -r requirements.txt
 
 ## 📸 UI Preview
 
-![UI Preview](Workflow_Diagram.jpg)
+![UI Preview](Workflow_Diagram.png)
 
 ---
 
